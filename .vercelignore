@@ -1,0 +1,5 @@
+node_modules
+.angular
+dist
+certs
+scripts/serve-local-pwa.mjs
