@@ -19,6 +19,7 @@
     "@angular/forms": "^19.0.0",
     "@angular/platform-browser": "^19.0.0",
     "@angular/router": "^19.0.0",
+    "@angular/service-worker": "^19.2.21",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "pdf-lib": "^1.17.1",

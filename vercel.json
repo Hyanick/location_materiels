@@ -2,10 +2,13 @@
   "framework": null,
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist/rental-doc-app/browser",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
   ]
 }
