@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { RentalDocumentActions } from '../actions/rental-document.actions';
 import { CustomerSignatureSectionComponent } from '../components/customer-signature-section.component';
 import { PdfPreviewModalComponent } from '../components/pdf-preview-modal.component';
@@ -15,15 +15,22 @@ import { RentalDocumentStore } from '../state/rental-document.store';
   standalone: true,
   imports: [CommonModule, RentalDocumentFormComponent, RentalDocumentPrintComponent, CustomerSignatureSectionComponent, PdfPreviewModalComponent],
   template: `
-    <div class="page-shell">
+    <div class="page-shell" [class.phone-shell]="isPhoneViewport()">
       <header class="topbar no-print">
         <div class="topbar-content">
           <div>
-            <h1>Créateur de bon de location</h1>
-            <p>Mode desktop pour la saisie PC, mode tablette pour relire et signer au client</p>
+            <h1>{{ isPhoneViewport() ? 'Bon de location' : 'Créateur de bon de location' }}</h1>
+            <p>
+              @if (isPhoneViewport()) {
+                Prépare, relis et exporte le document.
+              } @else {
+                Mode desktop pour la saisie PC, mode tablette pour relire et signer au client
+              }
+            </p>
           </div>
 
-          <div class="mode-switch" role="radiogroup" aria-label="Mode d'utilisation">
+          @if (!isPhoneViewport()) {
+            <div class="mode-switch" role="radiogroup" aria-label="Mode d'utilisation">
             <button
               type="button"
               class="mode-chip"
@@ -40,7 +47,8 @@ import { RentalDocumentStore } from '../state/rental-document.store';
             >
               Tablette
             </button>
-          </div>
+            </div>
+          }
         </div>
       </header>
 
@@ -94,19 +102,42 @@ import { RentalDocumentStore } from '../state/rental-document.store';
                 <p>{{ getTabletStepDescription() }}</p>
               </div>
 
-              <div class="tablet-stepper" role="tablist" aria-label="Étapes tablette">
-                @for (step of tabletSteps; track step.id) {
-                  <button
-                    type="button"
-                    class="tablet-step"
-                    [class.active]="tabletStep() === step.id"
-                    (click)="tabletStep.set(step.id)"
-                  >
-                    <span>{{ step.index }}</span>
-                    <strong>{{ step.label }}</strong>
-                  </button>
-                }
-              </div>
+              @if (isPhoneViewport()) {
+                <div class="mobile-step-breadcrumb" role="tablist" aria-label="Étapes mobile">
+                  <div class="mobile-step-count">Étape {{ getCurrentTabletStepIndex() }} sur {{ tabletSteps.length }}</div>
+                  <div class="mobile-step-track">
+                    @for (step of tabletSteps; track step.id; let isLast = $last) {
+                      <button
+                        type="button"
+                        class="mobile-step-link"
+                        [class.active]="tabletStep() === step.id"
+                        [class.done]="isTabletStepDone(step.id)"
+                        [class.future]="isTabletStepFuture(step.id)"
+                        (click)="tabletStep.set(step.id)"
+                      >
+                        {{ step.label }}
+                      </button>
+                      @if (!isLast) {
+                        <span class="mobile-step-separator">›</span>
+                      }
+                    }
+                  </div>
+                </div>
+              } @else {
+                <div class="tablet-stepper" role="tablist" aria-label="Étapes tablette">
+                  @for (step of tabletSteps; track step.id) {
+                    <button
+                      type="button"
+                      class="tablet-step"
+                      [class.active]="tabletStep() === step.id"
+                      (click)="tabletStep.set(step.id)"
+                    >
+                      <span>{{ step.index }}</span>
+                      <strong>{{ step.label }}</strong>
+                    </button>
+                  }
+                </div>
+              }
             </div>
 
             @if (tabletStep() === 'form') {
@@ -231,7 +262,9 @@ export class RentalDocumentPageComponent {
    */
   readonly document = computed(() => this.store.document());
   readonly isOnline = computed(() => this.networkStatus.isOnline());
-  readonly viewMode = signal<'desktop' | 'tablet'>('desktop');
+  readonly viewportWidth = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
+  readonly isPhoneViewport = computed(() => this.viewportWidth() <= 560);
+  readonly viewMode = signal<'desktop' | 'tablet'>(this.getInitialViewMode());
   readonly tabletStep = signal<'form' | 'review' | 'signature' | 'email'>('form');
   readonly tabletSteps = [
     { id: 'form', index: '1', label: 'Saisie' },
@@ -245,7 +278,23 @@ export class RentalDocumentPageComponent {
    */
   protected readonly _provider = this.provider;
 
+  @HostListener('window:resize')
+  handleViewportResize(): void {
+    this.viewportWidth.set(window.innerWidth);
+
+    if (this.isPhoneViewport() && this.viewMode() !== 'tablet') {
+      this.viewMode.set('tablet');
+      this.tabletStep.set('form');
+    }
+  }
+
   setViewMode(mode: 'desktop' | 'tablet'): void {
+    if (this.isPhoneViewport()) {
+      this.viewMode.set('tablet');
+      this.tabletStep.set('form');
+      return;
+    }
+
     this.viewMode.set(mode);
 
     if (mode === 'desktop') {
@@ -302,6 +351,19 @@ export class RentalDocumentPageComponent {
   }
 
   getTabletStepDescription(): string {
+    if (this.isPhoneViewport()) {
+      switch (this.tabletStep()) {
+        case 'review':
+          return 'Relis avec le client avant validation.';
+        case 'signature':
+          return 'Le client signe directement sur le téléphone.';
+        case 'email':
+          return 'Prépare l’envoi du document.';
+        default:
+          return 'Complète les champs essentiels.';
+      }
+    }
+
     switch (this.tabletStep()) {
       case 'review':
         return 'Présente le document au client dans un format lisible avant validation.';
@@ -316,6 +378,18 @@ export class RentalDocumentPageComponent {
 
   getTabletNextLabel(): string {
     return this.tabletStep() === 'email' ? 'Imprimer / PDF' : 'Étape suivante';
+  }
+
+  getCurrentTabletStepIndex(): number {
+    return this.tabletSteps.findIndex((step) => step.id === this.tabletStep()) + 1;
+  }
+
+  isTabletStepDone(stepId: 'form' | 'review' | 'signature' | 'email'): boolean {
+    return this.getTabletStepOrder(stepId) < this.getTabletStepOrder(this.tabletStep());
+  }
+
+  isTabletStepFuture(stepId: 'form' | 'review' | 'signature' | 'email'): boolean {
+    return this.getTabletStepOrder(stepId) > this.getTabletStepOrder(this.tabletStep());
   }
 
   getEmailStatusLabel(): string {
@@ -404,5 +478,17 @@ export class RentalDocumentPageComponent {
     const timePart = `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
 
     return `Bon_Location_Matériel_pour_${customerName}_du_${datePart}_à_${timePart}.pdf`;
+  }
+
+  private getInitialViewMode(): 'desktop' | 'tablet' {
+    if (typeof window !== 'undefined' && window.innerWidth <= 560) {
+      return 'tablet';
+    }
+
+    return 'desktop';
+  }
+
+  private getTabletStepOrder(stepId: 'form' | 'review' | 'signature' | 'email'): number {
+    return this.tabletSteps.findIndex((step) => step.id === stepId);
   }
 }

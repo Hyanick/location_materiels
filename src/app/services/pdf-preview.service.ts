@@ -9,6 +9,7 @@ export class PdfPreviewService {
   readonly totalPages = signal(0);
   readonly selectedPages = signal<number[]>([]);
   readonly pagePreviewUrls = signal<string[]>([]);
+  readonly currentPageIndex = signal(0);
   readonly hasSelection = computed(() => this.selectedPages().length > 0);
 
   private basePdfBytes: Uint8Array | null = null;
@@ -31,6 +32,7 @@ export class PdfPreviewService {
       this.totalPages.set(totalPages);
       this.selectedPages.set(selectedPages);
       this.pagePreviewUrls.set(renderResult.pagePreviewUrls);
+      this.currentPageIndex.set(0);
     } catch (error) {
       this.errorMessage.set(error instanceof Error ? error.message : 'Prévisualisation PDF impossible.');
     } finally {
@@ -45,6 +47,7 @@ export class PdfPreviewService {
     this.totalPages.set(0);
     this.selectedPages.set([]);
     this.pagePreviewUrls.set([]);
+    this.currentPageIndex.set(0);
     this.basePdfBytes = null;
   }
 
@@ -61,6 +64,32 @@ export class PdfPreviewService {
     this.pdfExportService.downloadPdf(pdfBytes, this.fileName);
   }
 
+  async downloadImages(): Promise<void> {
+    const selectedPages = this.selectedPages();
+
+    if (selectedPages.length === 0) {
+      throw new Error('Sélectionne au moins une page.');
+    }
+
+    const previewUrls = this.pagePreviewUrls();
+    const fileBaseName = this.getFileBaseName();
+
+    selectedPages.forEach((pageIndex, orderIndex) => {
+      const imageUrl = previewUrls[pageIndex];
+
+      if (!imageUrl) {
+        return;
+      }
+
+      const link = document.createElement('a');
+      const pageNumber = orderIndex + 1;
+
+      link.href = imageUrl;
+      link.download = `${fileBaseName}-page-${pageNumber}.png`;
+      link.click();
+    });
+  }
+
   print(): void {
     void this.printSelectedPdf();
   }
@@ -69,10 +98,35 @@ export class PdfPreviewService {
     return Array.from({ length: this.totalPages() }, (_, index) => index + 1);
   }
 
+  setCurrentPage(pageIndex: number): void {
+    const boundedIndex = Math.max(0, Math.min(pageIndex, this.totalPages() - 1));
+    this.currentPageIndex.set(boundedIndex);
+  }
+
+  showNextPage(): void {
+    this.setCurrentPage(this.currentPageIndex() + 1);
+  }
+
+  showPreviousPage(): void {
+    this.setCurrentPage(this.currentPageIndex() - 1);
+  }
+
+  getCurrentPreviewUrl(): string {
+    return this.pagePreviewUrls()[this.currentPageIndex()] ?? '';
+  }
+
+  isCurrentPageSelected(): boolean {
+    return this.selectedPages().includes(this.currentPageIndex());
+  }
+
   getVisiblePreviewUrls(): string[] {
     return this.selectedPages()
       .map((pageIndex) => this.pagePreviewUrls()[pageIndex])
       .filter((value): value is string => Boolean(value));
+  }
+
+  getSelectedPageNumbers(): number[] {
+    return this.selectedPages().map((pageIndex) => pageIndex + 1);
   }
 
   private async buildCurrentPdf(): Promise<Uint8Array> {
@@ -108,5 +162,9 @@ export class PdfPreviewService {
     } catch (error) {
       this.errorMessage.set(error instanceof Error ? error.message : 'Impression PDF impossible.');
     }
+  }
+
+  private getFileBaseName(): string {
+    return this.fileName.replace(/\.pdf$/i, '');
   }
 }
