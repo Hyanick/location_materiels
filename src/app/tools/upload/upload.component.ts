@@ -3,14 +3,13 @@ import { FileProcessorService } from '../../services/file-processor.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-upload',
   standalone: true,
   templateUrl: './upload.component.html',
   styleUrls: ['./upload.component.scss'],
-  imports: [FormsModule, CommonModule, RouterLink]
+  imports: [FormsModule, CommonModule]
 })
 export class UploadComponent {
   selectedFile?: File;
@@ -27,6 +26,7 @@ export class UploadComponent {
   spacingX = 300;
   spacingY = 200;
   colors = ['#ff0000', '#000000', '#6666ff']; // rouge, noir, bleu
+  selectedColor = '#1f4b7a';
 
   @ViewChild('imageCanvas', { static: false }) imageCanvas?: ElementRef<HTMLCanvasElement>;
 
@@ -95,9 +95,9 @@ export class UploadComponent {
 
       // Palette de couleurs alternées
       const colors = [
-        this.hexToRgba('#ff0000', opacity), // rouge
-        this.hexToRgba('#666666', opacity), // gris
-        this.hexToRgba('#3366ff', opacity)  // bleu
+        this.hexToRgba(this.selectedColor, opacity),
+        this.hexToRgba('#667085', opacity),
+        this.hexToRgba('#b42318', opacity)
       ];
 
       ctx.textAlign = 'center';
@@ -139,6 +139,11 @@ export class UploadComponent {
     }
   }
 
+  selectColor(color: string): void {
+    this.selectedColor = color;
+    this.onConfigChange();
+  }
+
   async applyWatermark() {
     if (!this.selectedFile || !this.watermarkText.trim()) {
       alert('Veuillez sélectionner un fichier et saisir un texte de filigrane.');
@@ -146,7 +151,14 @@ export class UploadComponent {
     }
 
     this.isProcessing = true;
-    const blob = await this.fileProcessor.addWatermark(this.selectedFile, this.watermarkText);
+    const blob = await this.fileProcessor.addWatermark(this.selectedFile, this.watermarkText, {
+      fontSize: this.fontSize,
+      opacity: this.opacity,
+      angle: this.angle,
+      spacingX: this.spacingX,
+      spacingY: this.spacingY,
+      colors: [this.selectedColor, '#667085', '#b42318']
+    });
     this.previewUrl = URL.createObjectURL(blob);
     this.safePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.previewUrl);
     this.isProcessing = false;

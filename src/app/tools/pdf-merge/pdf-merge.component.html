@@ -1,53 +1,96 @@
 <main class="tool-page">
-  <nav class="tool-nav">
-    <a routerLink="/">Accueil</a>
-  </nav>
-
-  <section class="pdf-merge-container">
+  <section class="tool-hero">
     <p class="tool-kicker">Merge</p>
     <h1>Fusionner des fichiers PDF</h1>
+    <p>Organise plusieurs PDF, vérifie l’ordre, puis génère un seul fichier final.</p>
+  </section>
 
-  <div class="upload-section">
-    <input type="file" (change)="onFileSelected($event)" multiple accept="application/pdf" />
-    <button class="danger-btn" type="button" (click)="clearAll()" [disabled]="files().length === 0">Tout supprimer</button>
-  </div>
-
-  <ul class="file-list" *ngIf="files().length > 0">
-    <li *ngFor="let item of files(); let i = index" class="file-item">
-      <div class="file-info">
-        <span>{{ item.file.name }}</span>
+  <section class="merge-layout">
+    <div class="pdf-merge-container">
+      <div class="panel-title">
+        <h2>Fichiers</h2>
+        <span>{{ files().length }} sélectionné{{ files().length > 1 ? 's' : '' }}</span>
       </div>
-      <div class="file-actions">
-        <button type="button" (click)="moveFile(i, 'up')" [disabled]="i === 0">Monter</button>
-        <button type="button" (click)="moveFile(i, 'down')" [disabled]="i === files().length - 1">Descendre</button>
-        <button type="button" (click)="removeFile(i)">Retirer</button>
+
+      <div class="upload-section">
+        <label class="drop-zone">
+          <span class="file-stack-icon" aria-hidden="true"></span>
+          <strong>Ajouter des PDF</strong>
+          <small>Sélection multiple acceptée</small>
+          <input type="file" (change)="onFileSelected($event)" multiple accept="application/pdf" hidden />
+        </label>
+        <button class="danger-btn" type="button" (click)="clearAll()" [disabled]="files().length === 0">Tout supprimer</button>
       </div>
-      <iframe *ngIf="item.previewUrl" [src]="item.previewUrl | safeUrl" class="pdf-preview"></iframe>
-    </li>
-  </ul>
 
-  <div class="output-name" *ngIf="files().length > 0">
-    <label>
-      <span>Nom du fichier fusionné</span>
-      <input [value]="outputFileName()" (input)="onFileNameChange($event)" placeholder="fusion-pdf.pdf" />
-    </label>
-  </div>
+      <ul class="file-list" *ngIf="files().length > 0; else emptyFiles">
+        <li
+          *ngFor="let item of files(); let i = index"
+          class="file-item"
+          [class.active]="selectedPreviewIndex() === i"
+          (click)="selectPreview(i)"
+        >
+          <div class="file-order">{{ i + 1 }}</div>
+          <div class="file-info">
+            <strong>{{ item.file.name }}</strong>
+            <span>{{ item.file.size / 1024 / 1024 | number: '1.1-1' }} Mo</span>
+          </div>
+          <div class="file-actions">
+            <button type="button" (click)="moveFile(i, 'up'); $event.stopPropagation()" [disabled]="i === 0">Monter</button>
+            <button type="button" (click)="moveFile(i, 'down'); $event.stopPropagation()" [disabled]="i === files().length - 1">Descendre</button>
+            <button type="button" (click)="removeFile(i); $event.stopPropagation()">Retirer</button>
+          </div>
+        </li>
+      </ul>
 
-  <div class="actions">
-    <button class="primary-btn" type="button" (click)="mergePdfs()" [disabled]="files().length === 0 || merging()">Fusionner</button>
-  </div>
+      <ng-template #emptyFiles>
+        <div class="empty-list">
+          <span class="file-stack-icon" aria-hidden="true"></span>
+          <strong>Aucun PDF sélectionné</strong>
+          <small>Ajoute au moins deux fichiers pour préparer une fusion.</small>
+        </div>
+      </ng-template>
 
-  <div *ngIf="merging()" class="progress-container">
-    <p>Fusion en cours... {{ progress() }}%</p>
-    <div class="progress-bar">
-      <div class="progress" [style.width.%]="progress()"></div>
+      <div class="output-name" *ngIf="files().length > 0">
+        <label>
+          <span>Nom du fichier fusionné</span>
+          <input [value]="outputFileName()" (input)="onFileNameChange($event)" placeholder="fusion-pdf.pdf" />
+        </label>
+      </div>
+
+      <div class="actions">
+        <button class="primary-btn" type="button" (click)="mergePdfs()" [disabled]="files().length === 0 || merging()">Fusionner</button>
+      </div>
+
+      <div *ngIf="merging()" class="progress-container">
+        <p>Fusion en cours... {{ progress() }}%</p>
+        <div class="progress-bar">
+          <div class="progress" [style.width.%]="progress()"></div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div *ngIf="mergedPreviewUrl()" class="merged-preview">
-    <h3>Prévisualisation du PDF fusionné</h3>
-    <iframe *ngIf="mergedPreviewUrl()" [src]="mergedPreviewUrl()! | safeUrl" class="pdf-preview"></iframe>
-    <button class="primary-btn" type="button" (click)="downloadMerged()">Télécharger le PDF fusionné</button>
-  </div>
+    <div class="preview-panel">
+      <div class="panel-title">
+        <h2>{{ mergedPreviewUrl() ? 'PDF fusionné' : 'Aperçu' }}</h2>
+        <span>{{ mergedPreviewUrl() ? 'Prêt à télécharger' : 'Fichier sélectionné' }}</span>
+      </div>
+
+      <ng-container *ngIf="mergedPreviewUrl(); else selectedPreview">
+        <iframe [src]="mergedPreviewUrl()! | safeUrl" class="pdf-preview"></iframe>
+        <button class="primary-btn" type="button" (click)="downloadMerged()">Télécharger le PDF fusionné</button>
+      </ng-container>
+
+      <ng-template #selectedPreview>
+        <iframe *ngIf="selectedPreviewUrl(); else emptyPreview" [src]="selectedPreviewUrl()! | safeUrl" class="pdf-preview"></iframe>
+      </ng-template>
+
+      <ng-template #emptyPreview>
+        <div class="empty-preview">
+          <span class="file-stack-icon" aria-hidden="true"></span>
+          <strong>Aucun aperçu</strong>
+          <small>Ajoute un PDF pour l’afficher ici.</small>
+        </div>
+      </ng-template>
+    </div>
   </section>
 </main>

@@ -1,6 +1,5 @@
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { PDFDocument } from 'pdf-lib';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 
@@ -13,7 +12,7 @@ interface PdfFile {
 @Component({
   selector: 'app-pdf-merge',
   standalone: true,
-  imports: [CommonModule, RouterLink, SafeUrlPipe],
+  imports: [CommonModule, SafeUrlPipe],
   templateUrl: './pdf-merge.component.html',
   styleUrls: ['./pdf-merge.component.scss']
 })
@@ -23,6 +22,7 @@ export class PdfMergeComponent {
   merging = signal<boolean>(false);
   mergedPreviewUrl = signal<string | null>(null);
   outputFileName = signal<string>('fusion-pdf.pdf'); // nom par défaut
+  selectedPreviewIndex = signal<number>(0);
 
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -36,6 +36,7 @@ export class PdfMergeComponent {
       this.files().forEach(f => URL.revokeObjectURL(f.previewUrl));
 
       this.files.set(selectedFiles);
+      this.selectedPreviewIndex.set(0);
       this.mergedPreviewUrl.set(null);
     }
   }
@@ -45,11 +46,13 @@ export class PdfMergeComponent {
     URL.revokeObjectURL(currentFiles[index].previewUrl);
     currentFiles.splice(index, 1);
     this.files.set(currentFiles);
+    this.selectedPreviewIndex.set(Math.max(0, Math.min(this.selectedPreviewIndex(), currentFiles.length - 1)));
   }
 
   clearAll() {
     this.files().forEach(f => URL.revokeObjectURL(f.previewUrl));
     this.files.set([]);
+    this.selectedPreviewIndex.set(0);
     this.mergedPreviewUrl.set(null);
   }
 
@@ -64,6 +67,15 @@ export class PdfMergeComponent {
     currentFiles[newIndex] = temp;
 
     this.files.set(currentFiles);
+    this.selectedPreviewIndex.set(newIndex);
+  }
+
+  selectPreview(index: number): void {
+    this.selectedPreviewIndex.set(index);
+  }
+
+  selectedPreviewUrl(): string | null {
+    return this.files()[this.selectedPreviewIndex()]?.previewUrl ?? null;
   }
 
   async mergePdfs() {

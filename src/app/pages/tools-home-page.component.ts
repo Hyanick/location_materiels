@@ -6,7 +6,8 @@ interface ToolCard {
   title: string;
   description: string;
   route: string;
-  icon: string;
+  tone: string;
+  meta: string;
 }
 
 @Component({
@@ -25,11 +26,14 @@ interface ToolCard {
 
       <section class="tools-grid" aria-label="Outils disponibles">
         @for (tool of tools; track tool.route) {
-          <a class="tool-card" [routerLink]="tool.route">
-            <span class="tool-icon" aria-hidden="true">{{ tool.icon }}</span>
+          <a class="tool-card" [class]="tool.tone" [routerLink]="tool.route">
+            <span class="tool-icon" aria-hidden="true"></span>
             <span class="tool-title">{{ tool.title }}</span>
             <span class="tool-description">{{ tool.description }}</span>
-            <span class="tool-action">Ouvrir</span>
+            <span class="tool-footer">
+              <span>{{ tool.meta }}</span>
+              <span class="tool-action">Ouvrir</span>
+            </span>
           </a>
         }
       </section>
@@ -38,7 +42,7 @@ interface ToolCard {
   styles: [`
     .tools-home {
       min-height: 100vh;
-      padding: 42px 32px;
+      padding: 38px 32px;
       color: var(--text);
     }
 
@@ -58,7 +62,7 @@ interface ToolCard {
 
     .tools-hero h1 {
       margin: 0;
-      font-size: 42px;
+      font-size: 44px;
       line-height: 1.08;
       color: var(--primary-strong);
     }
@@ -103,14 +107,56 @@ interface ToolCard {
     .tool-icon {
       width: 48px;
       height: 48px;
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       border-radius: 8px;
       background: var(--primary-soft);
       color: var(--primary);
-      font-size: 25px;
-      font-weight: 800;
+    }
+
+    .tool-icon::before,
+    .tool-icon::after {
+      content: "";
+      position: absolute;
+      display: block;
+    }
+
+    .tool-icon::before {
+      width: 22px;
+      height: 28px;
+      border: 2px solid currentColor;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.44);
+    }
+
+    .tool-icon::after {
+      width: 14px;
+      height: 2px;
+      background: currentColor;
+      box-shadow: 0 6px 0 currentColor, 0 12px 0 currentColor;
+    }
+
+    .merge .tool-icon::before {
+      transform: translate(-4px, -3px);
+      box-shadow: 8px 6px 0 rgba(31, 75, 122, 0.14);
+    }
+
+    .filigramme .tool-icon::after {
+      width: 24px;
+      transform: rotate(-24deg);
+      box-shadow: 0 7px 0 currentColor;
+    }
+
+    .location .tool-icon::after {
+      width: 16px;
+      height: 16px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      background: transparent;
+      box-shadow: none;
+      transform: rotate(45deg);
     }
 
     .tool-title {
@@ -126,8 +172,26 @@ interface ToolCard {
       flex: 1;
     }
 
+    .tool-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid rgba(31, 75, 122, 0.10);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .tool-action {
-      color: var(--primary);
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: white;
       font-weight: 800;
     }
 
@@ -152,19 +216,22 @@ export class ToolsHomePageComponent {
       title: 'Filigramme',
       description: 'Ajoute un texte en filigrane sur un PDF ou une image, puis telecharge le resultat.',
       route: '/filigramme',
-      icon: 'F'
+      tone: 'filigramme',
+      meta: 'PDF et images'
     },
     {
       title: 'Merge',
       description: 'Assemble plusieurs fichiers PDF dans l ordre voulu et genere un seul document.',
       route: '/merge',
-      icon: 'M'
+      tone: 'merge',
+      meta: 'Fusion PDF'
     },
     {
       title: 'Location',
       description: 'Prepare un bon de location, relis le document avec le client et exporte le PDF.',
       route: '/location',
-      icon: 'L'
+      tone: 'location',
+      meta: 'Document client'
     }
   ];
 }

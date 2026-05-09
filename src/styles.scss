@@ -32,6 +32,68 @@ body {
   min-height: 100vh;
 }
 
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 32px;
+  border-bottom: 1px solid rgba(31, 75, 122, 0.12);
+  background: rgba(248, 251, 255, 0.92);
+  backdrop-filter: blur(12px);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--primary-strong);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, transparent 44%, rgba(255, 255, 255, 0.8) 44%, rgba(255, 255, 255, 0.8) 56%, transparent 56%),
+    linear-gradient(0deg, transparent 44%, rgba(255, 255, 255, 0.8) 44%, rgba(255, 255, 255, 0.8) 56%, transparent 56%),
+    var(--primary);
+  box-shadow: 0 10px 22px rgba(31, 75, 122, 0.22);
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(31, 75, 122, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.app-nav a {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.app-nav a.active,
+.app-nav a:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 button,
 input,
 textarea,
@@ -40,7 +102,7 @@ select {
 }
 
 .page-shell {
-  min-height: 100vh;
+  min-height: calc(100vh - 61px);
 }
 
 .topbar {
@@ -58,20 +120,6 @@ select {
   margin: 0;
   font-size: 34px;
   letter-spacing: -0.03em;
-}
-
-.home-link {
-  display: inline-flex;
-  margin-bottom: 10px;
-  color: var(--primary);
-  font-size: 14px;
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.home-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .topbar p {
@@ -1352,6 +1400,21 @@ input[readonly] {
 }
 
 @media (max-width: 720px) {
+  .app-header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 10px 12px;
+  }
+
+  .app-nav {
+    overflow-x: auto;
+  }
+
+  .app-nav a {
+    flex: 1 0 auto;
+    justify-content: center;
+  }
+
   .topbar {
     padding: 18px 16px 8px;
   }

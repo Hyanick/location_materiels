@@ -1,31 +1,33 @@
 <main class="tool-page">
-  <nav class="tool-nav">
-    <a routerLink="/">Accueil</a>
-  </nav>
-
-  <section class="tool-card">
+  <section class="tool-hero">
     <header class="tool-header">
       <div>
         <p class="tool-kicker">Filigramme</p>
         <h1>Ajout de filigrane</h1>
+        <p>Importe un PDF ou une image, ajuste le rendu, puis exporte le document final.</p>
       </div>
     </header>
+  </section>
 
-    <div class="upload-section">
-      <div class="file-input-container">
-        <button class="primary-btn" type="button" (click)="fileInput.click()">
-          Choisir un fichier
-        </button>
-        <input
-          #fileInput
-          type="file"
-          (change)="onFileSelected($event)"
-          accept=".pdf,image/*"
-          hidden
-        />
-        <span class="file-name" *ngIf="selectedFile">{{ selectedFile.name }}</span>
-        <span class="file-name empty" *ngIf="!selectedFile">Aucun fichier sélectionné</span>
+  <section class="watermark-layout">
+    <div class="tool-card controls-card">
+      <div class="panel-title">
+        <h2>Document</h2>
+        <span *ngIf="selectedFile">{{ selectedFile.name }}</span>
       </div>
+
+      <button class="drop-zone" type="button" (click)="fileInput.click()">
+        <span class="file-icon" aria-hidden="true"></span>
+        <strong>Choisir un fichier</strong>
+        <small>PDF, PNG ou JPG</small>
+      </button>
+      <input
+        #fileInput
+        type="file"
+        (change)="onFileSelected($event)"
+        accept=".pdf,image/*"
+        hidden
+      />
 
       <label class="watermark-input">
         <span>Texte du filigrane</span>
@@ -36,66 +38,90 @@
         />
         <small>Ce texte sera répété en diagonale sur votre document.</small>
       </label>
-    </div>
 
-    <div class="config-panel">
-      <h2>Personnalisation</h2>
+      <div class="config-panel">
+        <h2>Réglages du filigrane</h2>
 
-      <div class="config-grid">
-        <div class="config-item">
-          <label>Taille</label>
-          <input type="range" min="14" max="60" [(ngModel)]="fontSize" (input)="onConfigChange()" />
-          <span>{{ fontSize }}px</span>
+        <div class="swatches" aria-label="Couleur du filigrane">
+          <button
+            *ngFor="let color of colors"
+            type="button"
+            class="swatch"
+            [class.active]="selectedColor === color"
+            [style.background]="color"
+            (click)="selectColor(color)"
+          ></button>
         </div>
 
-        <div class="config-item">
-          <label>Opacité</label>
-          <input type="range" min="0.1" max="1" step="0.05" [(ngModel)]="opacity" (input)="onConfigChange()" />
-          <span>{{ opacity }}</span>
-        </div>
+        <div class="config-grid">
+          <div class="config-item">
+            <label>Taille</label>
+            <input type="range" min="14" max="60" [(ngModel)]="fontSize" (input)="onConfigChange()" />
+            <span>{{ fontSize }}px</span>
+          </div>
 
-        <div class="config-item">
-          <label>Angle</label>
-          <input type="range" min="-60" max="60" [(ngModel)]="angle" (input)="onConfigChange()" />
-          <span>{{ angle }}°</span>
-        </div>
+          <div class="config-item">
+            <label>Opacité</label>
+            <input type="range" min="0.1" max="1" step="0.05" [(ngModel)]="opacity" (input)="onConfigChange()" />
+            <span>{{ opacity }}</span>
+          </div>
 
-        <div class="config-item">
-          <label>Espacement X</label>
-          <input type="range" min="100" max="600" [(ngModel)]="spacingX" (input)="onConfigChange()" />
-          <span>{{ spacingX }}px</span>
-        </div>
+          <div class="config-item">
+            <label>Angle</label>
+            <input type="range" min="-60" max="60" [(ngModel)]="angle" (input)="onConfigChange()" />
+            <span>{{ angle }}°</span>
+          </div>
 
-        <div class="config-item">
-          <label>Espacement Y</label>
-          <input type="range" min="100" max="600" [(ngModel)]="spacingY" (input)="onConfigChange()" />
-          <span>{{ spacingY }}px</span>
+          <div class="config-item">
+            <label>Espacement X</label>
+            <input type="range" min="100" max="600" [(ngModel)]="spacingX" (input)="onConfigChange()" />
+            <span>{{ spacingX }}px</span>
+          </div>
+
+          <div class="config-item">
+            <label>Espacement Y</label>
+            <input type="range" min="100" max="600" [(ngModel)]="spacingY" (input)="onConfigChange()" />
+            <span>{{ spacingY }}px</span>
+          </div>
         </div>
+      </div>
+
+      <div class="buttons">
+        <button class="secondary-btn" type="button" (click)="previewWatermark()" [disabled]="!selectedFile">
+          Prévisualiser
+        </button>
+        <button class="primary-btn" type="button" (click)="applyWatermark()" [disabled]="isProcessing || !selectedFile">
+          {{ isProcessing ? 'Traitement...' : 'Appliquer le filigrane' }}
+        </button>
+        <button class="danger-btn" type="button" (click)="downloadFile()" [disabled]="!previewUrl">
+          Télécharger
+        </button>
       </div>
     </div>
 
-    <div class="buttons">
-      <button class="secondary-btn" type="button" (click)="previewWatermark()" [disabled]="!selectedFile">
-        Prévisualiser
-      </button>
-      <button class="primary-btn" type="button" (click)="applyWatermark()" [disabled]="isProcessing || !selectedFile">
-        {{ isProcessing ? 'Traitement...' : 'Appliquer le filigrane' }}
-      </button>
-      <button class="danger-btn" type="button" (click)="downloadFile()" [disabled]="!previewUrl">
-        Télécharger
-      </button>
+    <div class="tool-card preview-card">
+      <div class="panel-title">
+        <h2>Aperçu</h2>
+        <span>{{ showPreview && previewUrl ? 'Document prêt' : 'En attente' }}</span>
+      </div>
+
+      <ng-container *ngIf="showPreview && previewUrl; else emptyPreview">
+        <ng-container *ngIf="selectedFile?.type === 'application/pdf'; else imagePreview">
+          <iframe [src]="safePreviewUrl" width="100%" height="600px"></iframe>
+        </ng-container>
+
+        <ng-template #imagePreview>
+          <canvas #imageCanvas></canvas>
+        </ng-template>
+      </ng-container>
+
+      <ng-template #emptyPreview>
+        <div class="empty-preview">
+          <span class="file-icon" aria-hidden="true"></span>
+          <strong>Aucun aperçu</strong>
+          <small>Sélectionne un fichier puis lance la prévisualisation.</small>
+        </div>
+      </ng-template>
     </div>
-  </section>
-
-  <section class="tool-card preview-card" *ngIf="showPreview && previewUrl">
-    <h2>Aperçu du document</h2>
-
-    <ng-container *ngIf="selectedFile?.type === 'application/pdf'; else imagePreview">
-      <iframe [src]="safePreviewUrl" width="100%" height="600px"></iframe>
-    </ng-container>
-
-    <ng-template #imagePreview>
-      <canvas #imageCanvas></canvas>
-    </ng-template>
   </section>
 </main>
