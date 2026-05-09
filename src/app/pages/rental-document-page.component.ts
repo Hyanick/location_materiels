@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { RentalDocumentActions } from '../actions/rental-document.actions';
 import { CustomerSignatureSectionComponent } from '../components/customer-signature-section.component';
 import { PdfPreviewModalComponent } from '../components/pdf-preview-modal.component';
@@ -13,12 +14,13 @@ import { RentalDocumentStore } from '../state/rental-document.store';
 @Component({
   selector: 'app-rental-document-page',
   standalone: true,
-  imports: [CommonModule, RentalDocumentFormComponent, RentalDocumentPrintComponent, CustomerSignatureSectionComponent, PdfPreviewModalComponent],
+  imports: [CommonModule, RouterLink, RentalDocumentFormComponent, RentalDocumentPrintComponent, CustomerSignatureSectionComponent, PdfPreviewModalComponent],
   template: `
     <div class="page-shell" [class.phone-shell]="isPhoneViewport()">
       <header class="topbar no-print">
         <div class="topbar-content">
           <div>
+            <a class="home-link" routerLink="/">Accueil</a>
             <h1>{{ isPhoneViewport() ? 'Bon de location' : 'Créateur de bon de location' }}</h1>
             <p>
               @if (isPhoneViewport()) {

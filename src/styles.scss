@@ -60,6 +60,20 @@ select {
   letter-spacing: -0.03em;
 }
 
+.home-link {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.home-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .topbar p {
   margin: 8px 0 0;
   color: var(--muted);

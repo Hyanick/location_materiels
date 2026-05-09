@@ -1,0 +1,53 @@
+<main class="tool-page">
+  <nav class="tool-nav">
+    <a routerLink="/">Accueil</a>
+  </nav>
+
+  <section class="pdf-merge-container">
+    <p class="tool-kicker">Merge</p>
+    <h1>Fusionner des fichiers PDF</h1>
+
+  <div class="upload-section">
+    <input type="file" (change)="onFileSelected($event)" multiple accept="application/pdf" />
+    <button class="danger-btn" type="button" (click)="clearAll()" [disabled]="files().length === 0">Tout supprimer</button>
+  </div>
+
+  <ul class="file-list" *ngIf="files().length > 0">
+    <li *ngFor="let item of files(); let i = index" class="file-item">
+      <div class="file-info">
+        <span>{{ item.file.name }}</span>
+      </div>
+      <div class="file-actions">
+        <button type="button" (click)="moveFile(i, 'up')" [disabled]="i === 0">Monter</button>
+        <button type="button" (click)="moveFile(i, 'down')" [disabled]="i === files().length - 1">Descendre</button>
+        <button type="button" (click)="removeFile(i)">Retirer</button>
+      </div>
+      <iframe *ngIf="item.previewUrl" [src]="item.previewUrl | safeUrl" class="pdf-preview"></iframe>
+    </li>
+  </ul>
+
+  <div class="output-name" *ngIf="files().length > 0">
+    <label>
+      <span>Nom du fichier fusionné</span>
+      <input [value]="outputFileName()" (input)="onFileNameChange($event)" placeholder="fusion-pdf.pdf" />
+    </label>
+  </div>
+
+  <div class="actions">
+    <button class="primary-btn" type="button" (click)="mergePdfs()" [disabled]="files().length === 0 || merging()">Fusionner</button>
+  </div>
+
+  <div *ngIf="merging()" class="progress-container">
+    <p>Fusion en cours... {{ progress() }}%</p>
+    <div class="progress-bar">
+      <div class="progress" [style.width.%]="progress()"></div>
+    </div>
+  </div>
+
+  <div *ngIf="mergedPreviewUrl()" class="merged-preview">
+    <h3>Prévisualisation du PDF fusionné</h3>
+    <iframe *ngIf="mergedPreviewUrl()" [src]="mergedPreviewUrl()! | safeUrl" class="pdf-preview"></iframe>
+    <button class="primary-btn" type="button" (click)="downloadMerged()">Télécharger le PDF fusionné</button>
+  </div>
+  </section>
+</main>

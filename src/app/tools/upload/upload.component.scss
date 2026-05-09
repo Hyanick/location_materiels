@@ -1,0 +1,167 @@
+.tool-page {
+  min-height: 100vh;
+  padding: 28px 32px 42px;
+}
+
+.tool-nav {
+  max-width: 980px;
+  margin: 0 auto 16px;
+
+  a {
+    color: var(--primary);
+    font-weight: 800;
+    text-decoration: none;
+  }
+}
+
+.tool-card {
+  max-width: 980px;
+  margin: 0 auto 18px;
+  padding: 26px;
+  border: 1px solid rgba(31, 75, 122, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 36px rgba(21, 39, 72, 0.08);
+}
+
+.tool-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 22px;
+
+  h1 {
+    margin: 0;
+    color: var(--primary-strong);
+    font-size: 32px;
+  }
+}
+
+.tool-kicker {
+  margin: 0 0 6px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.file-input-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.file-name {
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.file-name.empty {
+  color: #999;
+  font-style: italic;
+}
+
+.watermark-input {
+  width: 100%;
+
+  span {
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  small {
+    color: var(--muted);
+    line-height: 1.45;
+  }
+}
+
+.config-panel {
+  margin-top: 1rem;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+
+  h2 {
+    margin: 0 0 16px;
+    color: var(--primary-strong);
+    font-size: 22px;
+  }
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  align-items: center;
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+
+  label {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  input[type='range'] {
+    width: 150px;
+  }
+
+  span {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+}
+
+.buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.preview-card {
+  h2 {
+    margin: 0 0 16px;
+    color: var(--primary-strong);
+    font-size: 22px;
+  }
+}
+
+canvas,
+iframe {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .tool-page {
+    padding: 18px 12px 28px;
+  }
+
+  .tool-card {
+    padding: 18px;
+  }
+
+  .tool-header h1 {
+    font-size: 25px;
+  }
+
+  .buttons {
+    flex-direction: column;
+  }
+}
