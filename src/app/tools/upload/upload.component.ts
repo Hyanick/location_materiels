@@ -1,8 +1,10 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { FileProcessorService } from '../../services/file-processor.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { AppSettingsService } from '../../services/app-settings.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-upload',
@@ -11,13 +13,18 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
   styleUrls: ['./upload.component.scss'],
   imports: [FormsModule, CommonModule]
 })
-export class UploadComponent {
+export class UploadComponent implements OnInit {
+  private readonly settings = inject(AppSettingsService);
+  private readonly toast = inject(ToastService);
+
   selectedFile?: File;
   watermarkText = '';
+  outputFileName = 'document-filigrane.pdf';
   previewUrl?: string;
   safePreviewUrl?: SafeResourceUrl;
   isProcessing = false;
   showPreview = false;
+  isPreviewFullscreen = false;
 
   // Options de personnalisation
   fontSize = 28;
@@ -25,8 +32,15 @@ export class UploadComponent {
   angle = -30;
   spacingX = 300;
   spacingY = 200;
-  colors = ['#ff0000', '#000000', '#6666ff']; // rouge, noir, bleu
+  colors = ['#1f4b7a', '#b42318', '#667085'];
   selectedColor = '#1f4b7a';
+  repeatedWatermark = true;
+  readonly presets = ['Confidentiel', 'Payé', 'Brouillon', 'Bon pour accord'];
+  readonly angles = [
+    { label: 'Diagonale', value: -30 },
+    { label: 'Horizontal', value: 0 },
+    { label: 'Vertical', value: -90 }
+  ];
 
   @ViewChild('imageCanvas', { static: false }) imageCanvas?: ElementRef<HTMLCanvasElement>;
 
@@ -35,27 +49,58 @@ export class UploadComponent {
     private sanitizer: DomSanitizer
   ) { }
 
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
+  ngOnInit(): void {
+    this.watermarkText = this.settings.settings().defaultWatermarkText;
+  }
+
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    this.setSelectedFile(file);
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.setSelectedFile(event.dataTransfer?.files?.[0]);
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  private setSelectedFile(file?: File): void {
     if (!file) return;
+
+    if (this.previewUrl) {
+      URL.revokeObjectURL(this.previewUrl);
+    }
 
     this.selectedFile = file;
     this.previewUrl = URL.createObjectURL(file);
     this.safePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.previewUrl);
     this.showPreview = false;
+    this.outputFileName = this.buildDefaultOutputFileName(file.name);
+    this.toast.success('Fichier chargé.');
   }
 
-  previewWatermark() {
+  async previewWatermark(): Promise<void> {
     if (!this.selectedFile) {
-      alert('Veuillez sélectionner un fichier avant de prévisualiser.');
+      this.toast.error('Sélectionne un fichier avant de prévisualiser.');
+      return;
+    }
+
+    if (!this.watermarkText.trim()) {
+      this.toast.error('Saisis un texte de filigrane.');
+      return;
+    }
+
+    if (this.selectedFile.type === 'application/pdf') {
+      await this.applyWatermark();
       return;
     }
 
     this.showPreview = true;
-
-    if (this.selectedFile.type.startsWith('image/')) {
-      setTimeout(() => this.drawPreviewWatermark(), 300);
-    }
+    setTimeout(() => this.drawPreviewWatermark(), 300);
   }
 
   drawPreviewWatermark() {
@@ -104,18 +149,21 @@ export class UploadComponent {
       ctx.textBaseline = 'middle';
       ctx.font = `${fontSize}px Arial`;
 
-      // Dessine le texte en diagonale avec alternance de couleurs et décalage
-      let colorIndex = 0;
-      for (let y = -canvas.height; y < canvas.height * 2; y += spacingY) {
-        const color = colors[colorIndex % colors.length];
-        ctx.fillStyle = color;
-        colorIndex++;
+      if (!this.repeatedWatermark) {
+        ctx.fillStyle = colors[0];
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+      } else {
+        let colorIndex = 0;
+        for (let y = -canvas.height; y < canvas.height * 2; y += spacingY) {
+          const color = colors[colorIndex % colors.length];
+          ctx.fillStyle = color;
+          colorIndex++;
 
-        // Décalage horizontal pour effet "vague"
-        const offsetX = (colorIndex % 2 === 0) ? spacingX / 2 : 0;
+          const offsetX = (colorIndex % 2 === 0) ? spacingX / 2 : 0;
 
-        for (let x = -canvas.width; x < canvas.width * 2; x += spacingX) {
-          ctx.fillText(text, x + offsetX, y);
+          for (let x = -canvas.width; x < canvas.width * 2; x += spacingX) {
+            ctx.fillText(text, x + offsetX, y);
+          }
         }
       }
 
@@ -139,6 +187,11 @@ export class UploadComponent {
     }
   }
 
+  applyPreset(text: string): void {
+    this.watermarkText = text;
+    this.onConfigChange();
+  }
+
   selectColor(color: string): void {
     this.selectedColor = color;
     this.onConfigChange();
@@ -146,26 +199,61 @@ export class UploadComponent {
 
   async applyWatermark() {
     if (!this.selectedFile || !this.watermarkText.trim()) {
-      alert('Veuillez sélectionner un fichier et saisir un texte de filigrane.');
+      this.toast.error('Sélectionne un fichier et saisis un texte de filigrane.');
       return;
     }
 
-    this.isProcessing = true;
-    const blob = await this.fileProcessor.addWatermark(this.selectedFile, this.watermarkText, {
+    try {
+      this.isProcessing = true;
+      const blob = await this.fileProcessor.addWatermark(this.selectedFile, this.watermarkText, this.buildWatermarkOptions());
+      if (this.previewUrl) {
+        URL.revokeObjectURL(this.previewUrl);
+      }
+      this.previewUrl = URL.createObjectURL(blob);
+      this.safePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.previewUrl);
+      this.showPreview = true;
+      this.toast.success('Filigrane appliqué.');
+    } catch {
+      this.toast.error('Impossible d’appliquer le filigrane.');
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  downloadFile() {
+    this.fileProcessor.downloadProcessedFile(this.ensurePdfExtension(this.outputFileName));
+    this.toast.success('Téléchargement lancé.');
+  }
+
+  openPreviewFullscreen(): void {
+    if (this.showPreview && this.previewUrl) {
+      this.isPreviewFullscreen = true;
+    }
+  }
+
+  closePreviewFullscreen(): void {
+    this.isPreviewFullscreen = false;
+  }
+
+  private buildWatermarkOptions() {
+    return {
       fontSize: this.fontSize,
       opacity: this.opacity,
       angle: this.angle,
       spacingX: this.spacingX,
       spacingY: this.spacingY,
-      colors: [this.selectedColor, '#667085', '#b42318']
-    });
-    this.previewUrl = URL.createObjectURL(blob);
-    this.safePreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.previewUrl);
-    this.isProcessing = false;
-    this.showPreview = true;
+      colors: [this.selectedColor, '#667085', '#b42318'],
+      repeated: this.repeatedWatermark
+    };
   }
 
-  downloadFile() {
-    this.fileProcessor.downloadProcessedFile();
+  private buildDefaultOutputFileName(fileName: string): string {
+    const baseName = fileName.replace(/\.[^.]+$/, '').replace(/\s+/g, '-');
+    return `${baseName || 'document'}-filigrane.pdf`;
+  }
+
+  private ensurePdfExtension(fileName: string): string {
+    const trimmed = fileName.trim() || 'document-filigrane.pdf';
+    return trimmed.toLowerCase().endsWith('.pdf') ? trimmed : `${trimmed}.pdf`;
   }
 }

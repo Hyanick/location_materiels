@@ -64,6 +64,48 @@ export class PdfPreviewService {
     this.pdfExportService.downloadPdf(pdfBytes, this.fileName);
   }
 
+  async openInNewTab(targetWindow?: Window | null): Promise<void> {
+    const pdfBytes = await this.buildCurrentPdf();
+    const url = this.pdfExportService.createPdfBlobUrl(pdfBytes);
+
+    if (targetWindow) {
+      targetWindow.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return;
+    }
+
+    const popup = window.open(url, '_blank');
+
+    if (!popup) {
+      this.errorMessage.set('Le navigateur a bloqué l’ouverture du PDF. Utilise Télécharger PDF ou autorise les pop-ups.');
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  async share(): Promise<void> {
+    const pdfBytes = await this.buildCurrentPdf();
+    const file = new File([pdfBytes], this.fileName, { type: 'application/pdf' });
+    const navigatorWithShare = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+      share?: (data: ShareData) => Promise<void>;
+    };
+    const shareData: ShareData = {
+      title: this.fileName,
+      text: 'Bon de location PDF',
+      files: [file]
+    };
+
+    if (!navigatorWithShare.share || (navigatorWithShare.canShare && !navigatorWithShare.canShare(shareData))) {
+      await this.download();
+      return;
+    }
+
+    await navigatorWithShare.share(shareData);
+  }
+
   async downloadImages(): Promise<void> {
     const selectedPages = this.selectedPages();
 
@@ -147,10 +189,19 @@ export class PdfPreviewService {
   }
 
   private async printSelectedPdf(): Promise<void> {
+    const popup = window.open('', '_blank');
+
     try {
       const pdfBytes = await this.buildCurrentPdf();
       const url = this.pdfExportService.createPdfBlobUrl(pdfBytes);
-      const popup = window.open(url, '_blank', 'noopener,noreferrer');
+
+      if (!popup) {
+        this.errorMessage.set('Le navigateur a bloqué l’impression. Télécharge le PDF ou autorise les pop-ups.');
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      popup.location.href = url;
       popup?.addEventListener(
         'load',
         () => {
@@ -160,6 +211,7 @@ export class PdfPreviewService {
         { once: true }
       );
     } catch (error) {
+      popup?.close();
       this.errorMessage.set(error instanceof Error ? error.message : 'Impression PDF impossible.');
     }
   }

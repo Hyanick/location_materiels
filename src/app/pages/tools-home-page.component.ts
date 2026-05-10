@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { CustomerBookService } from '../services/customer-book.service';
+import { LocalCatalogService } from '../services/local-catalog.service';
+import { RentalStorageService } from '../services/rental-storage.service';
 
 interface ToolCard {
   title: string;
@@ -24,6 +27,12 @@ interface ToolCard {
         </div>
       </section>
 
+      <section class="dashboard-strip" aria-label="Résumé">
+        <a routerLink="/location/historique"><strong>{{ historyCount() }}</strong><span>Bons</span></a>
+        <a routerLink="/location/clients"><strong>{{ customerCount() }}</strong><span>Clients</span></a>
+        <a routerLink="/location/catalogue"><strong>{{ availableCatalogCount() }}</strong><span>Articles disponibles</span></a>
+      </section>
+
       <section class="tools-grid" aria-label="Outils disponibles">
         @for (tool of tools; track tool.route) {
           <a class="tool-card" [class]="tool.tone" [routerLink]="tool.route">
@@ -36,6 +45,18 @@ interface ToolCard {
             </span>
           </a>
         }
+      </section>
+
+      <section class="quick-panel">
+        <div>
+          <h2>Raccourcis rapides</h2>
+          <p>Commence un bon, gère ton catalogue ou retrouve un document existant.</p>
+        </div>
+        <div class="quick-actions">
+          <a routerLink="/location" class="primary-btn">Nouveau bon</a>
+          <a routerLink="/location/clients" class="secondary-btn">Clients</a>
+          <a routerLink="/location/historique" class="secondary-btn">Historique</a>
+        </div>
       </section>
     </main>
   `,
@@ -81,6 +102,70 @@ interface ToolCard {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 18px;
+    }
+
+    .dashboard-strip,
+    .quick-panel {
+      max-width: 980px;
+      margin: 0 auto 18px;
+    }
+
+    .dashboard-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .dashboard-strip a {
+      border: 1px solid rgba(31, 75, 122, 0.14);
+      border-radius: 8px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.92);
+      color: inherit;
+      text-decoration: none;
+      box-shadow: 0 12px 28px rgba(21, 39, 72, 0.06);
+    }
+
+    .dashboard-strip strong,
+    .dashboard-strip span {
+      display: block;
+    }
+
+    .dashboard-strip strong {
+      color: var(--primary-strong);
+      font-size: 28px;
+    }
+
+    .dashboard-strip span {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .quick-panel {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      padding: 20px;
+      border: 1px solid rgba(31, 75, 122, 0.14);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .quick-panel h2 {
+      margin: 0;
+      color: var(--primary-strong);
+    }
+
+    .quick-panel p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .tool-card {
@@ -197,20 +282,160 @@ interface ToolCard {
 
     @media (max-width: 820px) {
       .tools-home {
-        padding: 28px 16px;
+        padding: 24px 14px 32px;
       }
 
       .tools-grid {
         grid-template-columns: 1fr;
       }
 
+      .dashboard-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .quick-panel {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .quick-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .tool-card {
+        min-height: 0;
+      }
+
       .tools-hero h1 {
         font-size: 32px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .tools-home {
+        min-height: calc(100dvh - 59px);
+        padding: 14px 10px 20px;
+      }
+
+      .tools-hero {
+        margin-bottom: 12px;
+      }
+
+      .tools-hero h1 {
+        font-size: 25px;
+        line-height: 1.12;
+      }
+
+      .tools-intro {
+        margin-top: 8px;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .tools-kicker {
+        margin-bottom: 6px;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+      }
+
+      .dashboard-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .dashboard-strip a {
+        min-width: 0;
+        padding: 10px 8px;
+      }
+
+      .dashboard-strip strong {
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .dashboard-strip span {
+        margin-top: 4px;
+        font-size: 11px;
+        line-height: 1.15;
+      }
+
+      .tool-card,
+      .quick-panel,
+      .dashboard-strip a {
+        border-radius: 10px;
+      }
+
+      .tools-grid {
+        gap: 10px;
+      }
+
+      .tool-card {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 8px 12px;
+        padding: 14px;
+      }
+
+      .tool-icon {
+        width: 42px;
+        height: 42px;
+        grid-row: span 3;
+      }
+
+      .tool-title {
+        margin-top: 0;
+        font-size: 18px;
+        line-height: 1.15;
+      }
+
+      .tool-description {
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .tool-footer {
+        grid-column: 2;
+        align-items: center;
+        padding-top: 8px;
+        font-size: 12px;
+      }
+
+      .tool-action {
+        min-height: 34px;
+        justify-content: center;
+        padding: 7px 10px;
+      }
+
+      .quick-panel {
+        margin-top: 12px;
+        padding: 14px;
+      }
+
+      .quick-panel h2 {
+        font-size: 18px;
+      }
+
+      .quick-panel p {
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .quick-actions {
+        gap: 8px;
       }
     }
   `]
 })
 export class ToolsHomePageComponent {
+  private readonly customerBook = inject(CustomerBookService);
+  private readonly catalogService = inject(LocalCatalogService);
+  private readonly rentalStorageService = inject(RentalStorageService);
+  readonly historyCount = computed(() => this.rentalStorageService.readHistory().length);
+  readonly customerCount = computed(() => this.customerBook.customers().length);
+  readonly availableCatalogCount = computed(() => this.catalogService.items().filter((item) => item.available).length);
   readonly tools: ToolCard[] = [
     {
       title: 'Filigramme',

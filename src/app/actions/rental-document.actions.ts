@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { DEFAULT_RENTAL_DOCUMENT } from '../data/default-rental-document.data';
-import { RENTAL_CATALOG } from '../data/rental-catalog.data';
 import { RentalDocumentLine } from '../models/rental-document-line.model';
+import { RentalDocument } from '../models/rental-document.model';
+import { CustomerBookService } from '../services/customer-book.service';
+import { LocalCatalogService } from '../services/local-catalog.service';
 import { RentalCalculationService } from '../services/rental-calculation.service';
 import { RentalStorageService } from '../services/rental-storage.service';
 import { EmailDeliveryStatus } from '../models/email-delivery-status.model';
@@ -14,6 +16,8 @@ import { RentalDocumentStore } from '../state/rental-document.store';
 export class RentalDocumentActions {
   private readonly store = inject(RentalDocumentStore);
   private readonly calculationService = inject(RentalCalculationService);
+  private readonly customerBookService = inject(CustomerBookService);
+  private readonly catalogService = inject(LocalCatalogService);
   private readonly storageService = inject(RentalStorageService);
 
   /**
@@ -35,6 +39,16 @@ export class RentalDocumentActions {
     this.storageService.save(resetDocument);
   }
 
+  saveCurrentToHistory(): void {
+    this.storageService.saveHistoryEntry(this.store.getSnapshot());
+  }
+
+  restoreDocument(document: RentalDocument): void {
+    const restoredDocument = this.calculationService.computeDocument(document);
+    this.store.setDocument(restoredDocument);
+    this.storageService.save(restoredDocument);
+  }
+
   /**
    * Met à jour n'importe quel champ racine du document.
    */
@@ -47,6 +61,7 @@ export class RentalDocumentActions {
 
     this.store.setDocument(nextDocument);
     this.storageService.save(nextDocument);
+    this.customerBookService.addOrUpdate(nextDocument.customer);
   }
 
   /**
@@ -136,7 +151,7 @@ export class RentalDocumentActions {
    * Ajoute une nouvelle ligne basée sur un article du catalogue.
    */
   addLineByItemId(itemId: string): void {
-    const item = RENTAL_CATALOG.find((entry) => entry.id === itemId);
+    const item = this.catalogService.getById(itemId);
 
     if (!item) {
       return;

@@ -18,6 +18,22 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./pages/rental-document-page.component').then((module) => module.RentalDocumentPageComponent)
   },
   {
+    path: 'location/clients',
+    loadComponent: () => import('./pages/customers-page.component').then((module) => module.CustomersPageComponent)
+  },
+  {
+    path: 'location/catalogue',
+    loadComponent: () => import('./pages/catalog-page.component').then((module) => module.CatalogPageComponent)
+  },
+  {
+    path: 'location/historique',
+    loadComponent: () => import('./pages/history-page.component').then((module) => module.HistoryPageComponent)
+  },
+  {
+    path: 'parametres',
+    loadComponent: () => import('./pages/settings-page.component').then((module) => module.SettingsPageComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }

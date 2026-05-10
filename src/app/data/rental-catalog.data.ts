@@ -11,35 +11,45 @@ export const RENTAL_CATALOG: RentalItem[] = [
     id: 'chair-white-folding',
     label: 'Chaise pliante blanche',
     unitPrice: 1.5,
+    depositAmount: 15,
     unit: 'piece',
-    category: 'chair'
+    category: 'chair',
+    available: true
   },
   {
     id: 'table-folding',
     label: 'Table pliante',
     unitPrice: 8,
+    depositAmount: 40,
     unit: 'piece',
-    category: 'table'
+    category: 'table',
+    available: true
   },
   {
     id: 'tablecloth',
     label: 'Nappe ronde ou rectangulaire',
     unitPrice: 5,
+    depositAmount: 16,
     unit: 'piece',
-    category: 'tablecloth'
+    category: 'tablecloth',
+    available: true
   },
   {
     id: 'special-pack',
     label: 'Pack spécial : 1 table + 6 chaises',
     unitPrice: 15,
+    depositAmount: 130,
     unit: 'pack',
-    category: 'pack'
+    category: 'pack',
+    available: true
   },
   {
     id: 'tablecloth-cleaning',
     label: 'Prise en compte du nettoyage des nappes rendues sales',
     unitPrice: 1,
+    depositAmount: 0,
     unit: 'piece',
-    category: 'cleaning'
+    category: 'cleaning',
+    available: true
   }
 ];

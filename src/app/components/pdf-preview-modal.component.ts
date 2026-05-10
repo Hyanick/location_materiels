@@ -89,15 +89,27 @@ import { PdfPreviewService } from '../services/pdf-preview.service';
           }
 
           <div class="pdf-preview-footer">
-            <button type="button" class="secondary-btn" (click)="preview.print()" [disabled]="!preview.hasSelection() || preview.isLoading()">
-              Imprimer
-            </button>
+            @if (isPhoneViewport()) {
+              <button type="button" class="secondary-btn" (click)="openPdfInNewTab()" [disabled]="!preview.hasSelection() || preview.isLoading()">
+                Ouvrir PDF
+              </button>
+            } @else {
+              <button type="button" class="secondary-btn" (click)="preview.print()" [disabled]="!preview.hasSelection() || preview.isLoading()">
+                Imprimer
+              </button>
+            }
             <button type="button" class="secondary-btn" (click)="downloadImages()" [disabled]="!preview.hasSelection() || preview.isLoading()">
               Télécharger image{{ preview.selectedPages().length > 1 ? 's' : '' }}
             </button>
-            <button type="button" class="primary-btn" (click)="download()" [disabled]="!preview.hasSelection() || preview.isLoading()">
-              Télécharger PDF
-            </button>
+            @if (isPhoneViewport()) {
+              <button type="button" class="primary-btn" (click)="sharePdf()" [disabled]="!preview.hasSelection() || preview.isLoading()">
+                Partager PDF
+              </button>
+            } @else {
+              <button type="button" class="primary-btn" (click)="download()" [disabled]="!preview.hasSelection() || preview.isLoading()">
+                Télécharger PDF
+              </button>
+            }
           </div>
         </div>
       </div>
@@ -131,5 +143,14 @@ export class PdfPreviewModalComponent {
 
   async downloadImages(): Promise<void> {
     await this.preview.downloadImages();
+  }
+
+  async openPdfInNewTab(): Promise<void> {
+    const targetWindow = window.open('', '_blank');
+    await this.preview.openInNewTab(targetWindow);
+  }
+
+  async sharePdf(): Promise<void> {
+    await this.preview.share();
   }
 }

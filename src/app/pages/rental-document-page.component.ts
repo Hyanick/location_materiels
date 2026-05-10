@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { RentalDocumentActions } from '../actions/rental-document.actions';
+import { LocationSubnavComponent } from '../components/location-subnav.component';
 import { CustomerSignatureSectionComponent } from '../components/customer-signature-section.component';
 import { PdfPreviewModalComponent } from '../components/pdf-preview-modal.component';
 import { RentalDocumentFormComponent } from '../components/rental-document-form.component';
@@ -8,14 +9,17 @@ import { RentalDocumentPrintComponent } from '../components/rental-document-prin
 import { RentalDocumentProvider } from '../providers/rental-document.provider';
 import { NetworkStatusService } from '../services/network-status.service';
 import { PdfPreviewService } from '../services/pdf-preview.service';
+import { RentalHistoryEntry, RentalStorageService } from '../services/rental-storage.service';
+import { ToastService } from '../services/toast.service';
 import { RentalDocumentStore } from '../state/rental-document.store';
 
 @Component({
   selector: 'app-rental-document-page',
   standalone: true,
-  imports: [CommonModule, RentalDocumentFormComponent, RentalDocumentPrintComponent, CustomerSignatureSectionComponent, PdfPreviewModalComponent],
+  imports: [CommonModule, LocationSubnavComponent, RentalDocumentFormComponent, RentalDocumentPrintComponent, CustomerSignatureSectionComponent, PdfPreviewModalComponent],
   template: `
     <div class="page-shell" [class.phone-shell]="isPhoneViewport()">
+      <app-location-subnav />
       <header class="topbar no-print">
         <div class="topbar-content">
           <div>
@@ -27,9 +31,12 @@ import { RentalDocumentStore } from '../state/rental-document.store';
                 Mode desktop pour la saisie PC, mode tablette pour relire et signer au client
               }
             </p>
+            <div class="save-status">
+              {{ getSaveStatusLabel() }}
+            </div>
           </div>
 
-          @if (!isPhoneViewport()) {
+          @if (!isTabletViewport()) {
             <div class="mode-switch" role="radiogroup" aria-label="Mode d'utilisation">
             <button
               type="button"
@@ -49,6 +56,10 @@ import { RentalDocumentStore } from '../state/rental-document.store';
             </button>
             </div>
           }
+          <div class="location-quick-actions no-print">
+            <button type="button" class="secondary-btn" (click)="openQuickSignature()">Signature rapide</button>
+            <button type="button" class="primary-btn" (click)="openPdfPreview()">Aperçu PDF</button>
+          </div>
         </div>
       </header>
 
@@ -89,6 +100,24 @@ import { RentalDocumentStore } from '../state/rental-document.store';
                   <div><strong>Erreur :</strong> {{ document().emailDelivery.lastError }}</div>
                 }
               </div>
+            </section>
+            <section class="history-card no-print">
+              <div class="history-header">
+                <h3>Historique</h3>
+                <span>{{ history().length }} bon{{ history().length > 1 ? 's' : '' }}</span>
+              </div>
+              @if (history().length === 0) {
+                <p>Aucun bon exporté pour le moment.</p>
+              } @else {
+                <div class="history-list">
+                  @for (entry of history(); track entry.id) {
+                    <button type="button" class="history-item" (click)="restoreHistoryEntry(entry)">
+                      <strong>{{ entry.customerName }}</strong>
+                      <span>{{ formatDateTime(entry.savedAt) }} · {{ formatPrice(entry.totalAmount) }}</span>
+                    </button>
+                  }
+                </div>
+              }
             </section>
             <app-rental-document-print [document]="document()" />
           </section>
@@ -141,7 +170,16 @@ import { RentalDocumentStore } from '../state/rental-document.store';
             </div>
 
             @if (tabletStep() === 'form') {
-              <app-rental-document-form [showSignatureSection]="false" />
+              @if (isPhoneViewport()) {
+                <app-rental-document-form [showSignatureSection]="false" />
+              } @else {
+                <div class="tablet-entry-layout">
+                  <app-rental-document-form [showSignatureSection]="false" />
+                  <div class="tablet-preview-frame">
+                    <app-rental-document-print [document]="document()" />
+                  </div>
+                </div>
+              }
             }
 
             @if (tabletStep() === 'review') {
@@ -232,6 +270,9 @@ import { RentalDocumentStore } from '../state/rental-document.store';
               <button type="button" class="secondary-btn" (click)="goToPreviousTabletStep()" [disabled]="tabletStep() === 'form'">
                 Étape précédente
               </button>
+              <button type="button" class="secondary-btn" (click)="openPdfPreview()">
+                Aperçu PDF
+              </button>
 
               <button type="button" class="primary-btn" (click)="goToNextTabletStep()">
                 {{ getTabletNextLabel() }}
@@ -245,6 +286,11 @@ import { RentalDocumentStore } from '../state/rental-document.store';
         </section>
       }
 
+      <div class="location-floating-action no-print">
+        <button type="button" class="secondary-btn" (click)="openQuickSignature()">Signature</button>
+        <button type="button" class="primary-btn" (click)="openPdfPreview()">Aperçu PDF</button>
+      </div>
+
       <app-pdf-preview-modal />
     </div>
   `,
@@ -255,15 +301,19 @@ export class RentalDocumentPageComponent {
   private readonly provider = inject(RentalDocumentProvider);
   private readonly networkStatus = inject(NetworkStatusService);
   private readonly pdfPreviewService = inject(PdfPreviewService);
+  private readonly rentalStorageService = inject(RentalStorageService);
   private readonly store = inject(RentalDocumentStore);
+  private readonly toast = inject(ToastService);
 
   /**
    * Exposition du document courant à l'aperçu.
    */
   readonly document = computed(() => this.store.document());
   readonly isOnline = computed(() => this.networkStatus.isOnline());
+  readonly history = signal<RentalHistoryEntry[]>(this.rentalStorageService.readHistory());
   readonly viewportWidth = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
   readonly isPhoneViewport = computed(() => this.viewportWidth() <= 560);
+  readonly isTabletViewport = computed(() => this.viewportWidth() <= 1024);
   readonly viewMode = signal<'desktop' | 'tablet'>(this.getInitialViewMode());
   readonly tabletStep = signal<'form' | 'review' | 'signature' | 'email'>('form');
   readonly tabletSteps = [
@@ -282,14 +332,14 @@ export class RentalDocumentPageComponent {
   handleViewportResize(): void {
     this.viewportWidth.set(window.innerWidth);
 
-    if (this.isPhoneViewport() && this.viewMode() !== 'tablet') {
+    if (this.isTabletViewport() && this.viewMode() !== 'tablet') {
       this.viewMode.set('tablet');
       this.tabletStep.set('form');
     }
   }
 
   setViewMode(mode: 'desktop' | 'tablet'): void {
-    if (this.isPhoneViewport()) {
+    if (this.isTabletViewport()) {
       this.viewMode.set('tablet');
       this.tabletStep.set('form');
       return;
@@ -380,6 +430,11 @@ export class RentalDocumentPageComponent {
     return this.tabletStep() === 'email' ? 'Imprimer / PDF' : 'Étape suivante';
   }
 
+  openQuickSignature(): void {
+    this.viewMode.set('tablet');
+    this.tabletStep.set('signature');
+  }
+
   getCurrentTabletStepIndex(): number {
     return this.tabletSteps.findIndex((step) => step.id === this.tabletStep()) + 1;
   }
@@ -443,7 +498,26 @@ export class RentalDocumentPageComponent {
   }
 
   async openPdfPreview(): Promise<void> {
+    this.actions.saveCurrentToHistory();
+    this.history.set(this.rentalStorageService.readHistory());
     await this.pdfPreviewService.openPreview(this.buildPdfFileName());
+  }
+
+  restoreHistoryEntry(entry: RentalHistoryEntry): void {
+    this.actions.restoreDocument(entry.document);
+    this.toast.success('Bon restauré depuis l’historique.');
+  }
+
+  getSaveStatusLabel(): string {
+    const savedAt = this.rentalStorageService.lastSavedAt();
+    return savedAt ? `Dernière sauvegarde : ${this.formatDateTime(savedAt)}` : 'Sauvegarde locale prête';
+  }
+
+  formatPrice(value: number): string {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(value);
   }
 
   formatDateTime(value: string): string {
@@ -481,7 +555,7 @@ export class RentalDocumentPageComponent {
   }
 
   private getInitialViewMode(): 'desktop' | 'tablet' {
-    if (typeof window !== 'undefined' && window.innerWidth <= 560) {
+    if (typeof window !== 'undefined' && window.innerWidth <= 1024) {
       return 'tablet';
     }
 

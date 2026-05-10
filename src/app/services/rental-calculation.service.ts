@@ -1,19 +1,14 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { RentalDocument } from '../models/rental-document.model';
 import { RentalDocumentLine } from '../models/rental-document-line.model';
+import { LocalCatalogService } from './local-catalog.service';
 
 /**
  * Service dédié aux calculs métier du document.
  */
 @Injectable()
 export class RentalCalculationService {
-  private readonly depositRatesByItemId: Record<string, number> = {
-    'chair-white-folding': 15,
-    'table-folding': 40,
-    tablecloth: 16,
-    'special-pack': 130,
-    'tablecloth-cleaning': 0
-  };
+  private readonly catalogService = inject(LocalCatalogService);
 
   /**
    * Calcule le total d'une ligne.
@@ -56,7 +51,7 @@ export class RentalCalculationService {
    * Calcule la caution d'une ligne selon le barème du matériel.
    */
   private computeLineDeposit(itemId: string, quantity: number): number {
-    const unitDeposit = this.depositRatesByItemId[itemId] ?? 0;
+    const unitDeposit = this.catalogService.getById(itemId)?.depositAmount ?? 0;
     return this.round(unitDeposit * quantity);
   }
 

@@ -3,10 +3,14 @@ import { Component, HostListener, Input, OnDestroy, computed, inject, signal } f
 import { FormsModule } from '@angular/forms';
 import { RentalDocumentActions } from '../actions/rental-document.actions';
 import { CustomerSignatureSectionComponent } from './customer-signature-section.component';
-import { RENTAL_CATALOG } from '../data/rental-catalog.data';
 import { AddressSuggestion } from '../models/address-suggestion.model';
+import { Customer } from '../models/customer.model';
 import { AddressAutocompleteService } from '../services/address-autocomplete.service';
+import { CustomerBookService } from '../services/customer-book.service';
+import { LocalCatalogService } from '../services/local-catalog.service';
 import { PdfPreviewService } from '../services/pdf-preview.service';
+import { RentalStorageService } from '../services/rental-storage.service';
+import { ToastService } from '../services/toast.service';
 import { RentalDocumentStore } from '../state/rental-document.store';
 
 @Component({
@@ -16,11 +20,13 @@ import { RentalDocumentStore } from '../state/rental-document.store';
   template: `
     <div class="panel-card">
       <div class="panel-header">
-        <h2>Édition du document</h2>
-        <div class="actions-row">
-          <button type="button" class="secondary-btn" (click)="resetDocument()">Réinitialiser</button>
-          <button type="button" class="primary-btn" (click)="openPdfPreview()">Aperçu PDF</button>
-        </div>
+        <h2>{{ isPhoneViewport() ? 'Informations' : 'Édition du document' }}</h2>
+        @if (!isPhoneViewport()) {
+          <div class="actions-row">
+            <button type="button" class="secondary-btn" (click)="resetDocument()">Réinitialiser</button>
+            <button type="button" class="primary-btn" (click)="openPdfPreview()">Aperçu PDF</button>
+          </div>
+        }
       </div>
 
       <div class="form-grid">
@@ -71,6 +77,16 @@ import { RentalDocumentStore } from '../state/rental-document.store';
           @if (isSectionExpanded('customer')) {
             <div class="mobile-section-content">
               <h3>Client</h3>
+
+              @if (recentCustomers().length > 0) {
+                <div class="recent-strip">
+                  @for (customer of recentCustomers(); track customer.fullName) {
+                    <button type="button" class="recent-chip" (click)="applyRecentCustomer(customer)">
+                      {{ customer.fullName }}
+                    </button>
+                  }
+                </div>
+              }
 
               <label>
                 <span>Nom complet</span>
@@ -142,9 +158,15 @@ import { RentalDocumentStore } from '../state/rental-document.store';
                 <h3>Matériel loué</h3>
 
                 <div class="catalog-actions desktop-catalog-actions">
+                  <input
+                    class="catalog-search"
+                    [ngModel]="catalogSearch()"
+                    (ngModelChange)="catalogSearch.set($event)"
+                    placeholder="Rechercher un article"
+                  />
                   <select [ngModel]="selectedItemId()" (ngModelChange)="selectedItemId.set($event)">
                     <option value="">Choisir un article à ajouter</option>
-                    @for (item of catalog; track item.id) {
+                    @for (item of filteredCatalog(); track item.id) {
                       <option [value]="item.id">{{ item.label }} - {{ formatPrice(item.unitPrice) }}</option>
                     }
                   </select>
@@ -343,7 +365,9 @@ import { RentalDocumentStore } from '../state/rental-document.store';
       <div class="summary-box mobile-summary-box">
         <div><strong>Total :</strong> {{ formatPrice(document().totalAmount) }}</div>
         <div><strong>Solde :</strong> {{ formatPrice(document().balanceDue) }}</div>
-        <button type="button" class="primary-btn mobile-summary-action" (click)="openPdfPreview()">Aperçu PDF</button>
+        @if (!isPhoneViewport()) {
+          <button type="button" class="primary-btn mobile-summary-action" (click)="openPdfPreview()">Aperçu PDF</button>
+        }
       </div>
 
       @if (isPhoneViewport() && isCatalogSheetOpen()) {
@@ -364,7 +388,7 @@ import { RentalDocumentStore } from '../state/rental-document.store';
                 <span>Article</span>
                 <select [ngModel]="selectedItemId()" (ngModelChange)="selectedItemId.set($event)">
                   <option value="">Choisir un article à ajouter</option>
-                  @for (item of catalog; track item.id) {
+                  @for (item of filteredCatalog(); track item.id) {
                     <option [value]="item.id">{{ item.label }} - {{ formatPrice(item.unitPrice) }}</option>
                   }
                 </select>
@@ -386,16 +410,33 @@ export class RentalDocumentFormComponent implements OnDestroy {
   private readonly actions = inject(RentalDocumentActions);
   private readonly store = inject(RentalDocumentStore);
   private readonly addressAutocompleteService = inject(AddressAutocompleteService);
+  private readonly customerBook = inject(CustomerBookService);
+  private readonly catalogService = inject(LocalCatalogService);
   private readonly pdfPreviewService = inject(PdfPreviewService);
+  private readonly rentalStorageService = inject(RentalStorageService);
+  private readonly toast = inject(ToastService);
   private addressSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private addressSearchAbortController: AbortController | null = null;
   private addressSuggestionCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
-  readonly catalog = RENTAL_CATALOG;
+  readonly catalog = computed(() => this.catalogService.items().filter((item) => item.available));
   readonly document = computed(() => this.store.document());
   readonly viewportWidth = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
   readonly isPhoneViewport = computed(() => this.viewportWidth() <= 560);
   readonly selectedItemId = signal('');
+  readonly catalogSearch = signal('');
+  readonly filteredCatalog = computed(() => {
+    const query = this.catalogSearch().trim().toLowerCase();
+    if (!query) {
+      return this.catalog();
+    }
+
+    return this.catalog().filter((item) => item.label.toLowerCase().includes(query));
+  });
+  readonly recentCustomers = computed(() => {
+    const savedCustomers = this.customerBook.customers();
+    return savedCustomers.length > 0 ? savedCustomers.slice(0, 8) : this.rentalStorageService.readRecentCustomers();
+  });
   readonly isCatalogSheetOpen = signal(false);
   readonly openMobileSection = signal<'company' | 'customer' | 'rental' | 'lines' | 'signature' | null>('customer');
   readonly addressSuggestions = signal<AddressSuggestion[]>([]);
@@ -479,6 +520,11 @@ export class RentalDocumentFormComponent implements OnDestroy {
     this.isCatalogSheetOpen.set(false);
   }
 
+  applyRecentCustomer(customer: Customer): void {
+    this.actions.patchCustomer(customer);
+    this.toast.success('Client récent appliqué.');
+  }
+
   openCatalogSheet(): void {
     this.isCatalogSheetOpen.set(true);
   }
@@ -513,6 +559,7 @@ export class RentalDocumentFormComponent implements OnDestroy {
   }
 
   async openPdfPreview(): Promise<void> {
+    this.actions.saveCurrentToHistory();
     await this.pdfPreviewService.openPreview(this.buildPdfFileName());
   }
 
